@@ -1,152 +1,276 @@
 import React, { useState, useEffect } from "react";
 import SalaryDisplay from "../components/SalaryDisplay";
-import { Container, Row, Col, Button, Modal, Form, Spinner, Alert } from "react-bootstrap";
+import {
+  Container,
+  Row,
+  Col,
+  Button,
+  Modal,
+  Form,
+  Spinner,
+  Alert,
+  Card,
+} from "react-bootstrap";
 import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { FaSearch, FaEdit, FaTrashAlt, FaDownload, FaUserAlt } from "react-icons/fa";
+import { MdWork } from "react-icons/md";
+
+const months = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
 
 const Home = () => {
   const [employees, setEmployees] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
   const [editEmployee, setEditEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch employees from backend
   useEffect(() => {
-    axios.get("http://localhost:5000/api/employees")
-      .then((response) => {
-        setEmployees(response.data);
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error fetching employees:", error);
-        setError("Failed to load employee data");
-        setLoading(false);
-        toast.error("Failed to load employee data"); // Show error toast
-      });
+    fetchEmployees();
   }, []);
 
-  // Delete employee
-  const handleDeleteEmployee = (id) => {
-    axios.delete(`http://localhost:5000/api/employees/${id}`)
-      .then(() => {
-        setEmployees(employees.filter(employee => employee.id !== id));
-        toast.success("Employee deleted successfully"); // Show success toast
-      })
-      .catch((error) => {
-        console.error("Error deleting employee:", error);
-        toast.error("Failed to delete employee"); // Show error toast
-      });
+  const fetchEmployees = async () => {
+    try {
+      const response = await axios.get("http://localhost:5000/api/employees");
+      setEmployees(response.data);
+    } catch (err) {
+      console.error("Error fetching employees:", err);
+      setError("Failed to load employee data");
+      toast.error("Failed to load employee data");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Open Edit Modal with Employee Data
+  const handleDeleteEmployee = async (id) => {
+    try {
+      await axios.delete(`http://localhost:5000/api/employees/${id}`);
+      setEmployees(prev => prev.filter(employee => employee.id !== id));
+      toast.success("Employee deleted successfully");
+    } catch (err) {
+      console.error("Error deleting employee:", err);
+      toast.error("Failed to delete employee");
+    }
+  };
+
   const handleEditEmployee = (employee) => {
-    setEditEmployee(employee);
+    setEditEmployee({ ...employee });
     setShowEditModal(true);
   };
 
-  // Update Employee Data with validation
-  const handleSaveEdit = () => {
-    if (!editEmployee.name.trim()) {
-      toast.error("Name cannot be empty"); // Show error toast
+  const handleSaveEdit = async () => {
+    if (!editEmployee.name.trim() || editEmployee.baseSalary <= 0 || editEmployee.overtimeHours < 0) {
+      toast.error("Please fill out valid employee details");
       return;
     }
 
-    if (editEmployee.baseSalary <= 0) {
-      toast.error("Base salary must be a positive number"); // Show error toast
-      return;
+    try {
+      const response = await axios.put(
+        `http://localhost:5000/api/employees/${editEmployee.id}`,
+        editEmployee
+      );
+      setEmployees(prev => 
+        prev.map(emp => (emp.id === editEmployee.id ? response.data.employee : emp))
+      );
+      toast.success("Employee updated successfully");
+      setShowEditModal(false);
+    } catch (err) {
+      console.error("Error updating employee:", err);
+      toast.error("Failed to update employee");
     }
-
-    if (editEmployee.overtimeHours < 0) {
-      toast.error("Overtime hours cannot be negative"); // Show error toast
-      return;
-    }
-
-    axios.put(`http://localhost:5000/api/employees/${editEmployee.id}`, editEmployee)
-      .then((response) => {
-        setEmployees(employees.map(emp => (emp.id === editEmployee.id ? response.data.employee : emp)));
-        setShowEditModal(false);
-        toast.success("Employee updated successfully"); // Show success toast
-      })
-      .catch((error) => {
-        console.error("Error updating employee:", error);
-        toast.error("Failed to update employee"); // Show error toast
-      });
   };
 
-  // Function to export employee data as CSV
   const downloadCSV = () => {
-    const headers = ["ID", "Name", "Base Salary", "Overtime Hours", "Experience"];
-    const rows = employees.map((employee) => [
-      employee.id,
-      employee.name,
-      employee.baseSalary,
-      employee.overtimeHours,
-      employee.experience,
-    ]);
-
-    // Creating CSV string
-    const csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
-
-    // Creating a Blob for CSV and triggering download
+    const headers = ["ID", "Name", "Base Salary", "Overtime Hours", "Salary Month", "Net Salary"];
+    const rows = filteredEmployees.map(employee => {
+      const { id, name, baseSalary, overtimeHours, salaryMonth } = employee;
+      const overtimePay = overtimeHours * 500;
+      const transportAllowance = 2500;
+      const grossSalary = baseSalary + overtimePay + transportAllowance;
+      const epf = baseSalary * 0.08;
+      const etf = baseSalary * 0.03;
+      const netSalary = grossSalary - (epf + etf);
+      
+      return [id, name, baseSalary, overtimeHours, salaryMonth, netSalary];
+    });
+    
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "employees.csv"; // Default file name
-    link.click(); // Programmatically click the link to trigger download
+    link.download = `employees_${filterMonth || 'all'}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  const filteredEmployees = employees.filter(
-    (employee) =>
-      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.id.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredEmployees = employees.filter(employee => {
+    const { name, id, salaryMonth } = employee;
+    const searchTermLower = searchTerm.toLowerCase();
+    
+    // Convert "YYYY-MM" format to month name for filtering
+    const [year, month] = salaryMonth.split('-');
+    const monthIndex = parseInt(month) - 1;
+    const monthName = months[monthIndex];
+    
+    const matchesSearch = 
+      name.toLowerCase().includes(searchTermLower) ||
+      id.toLowerCase().includes(searchTermLower);
+    
+    const matchesMonth = 
+      !filterMonth || 
+      monthName.toLowerCase() === filterMonth.toLowerCase();
+    
+    return matchesSearch && matchesMonth;
+  });
+
+  // Calculate summary statistics
+  const totalSalary = filteredEmployees.reduce(
+    (acc, emp) => acc + emp.baseSalary + (emp.overtimeHours * 500) + 2500, 
+    0
+  );
+  
+  const totalEPF = filteredEmployees.reduce(
+    (acc, emp) => acc + (emp.baseSalary * 0.08), 
+    0
+  );
+  
+  const totalOvertimePay = filteredEmployees.reduce(
+    (acc, emp) => acc + (emp.overtimeHours * 500),
+    0
   );
 
   return (
-    <Container className="mt-5">
-      <h1 className="text-center fw-bold">Welcome to Axento Books</h1>
-      <p className="text-center lead">Smart Accounting Assistant for Salary Calculation</p>
+    <Container className="mt-4">
+      <h1 className="text-center mb-4" style={{ color: "#402978" }}>
+        <FaUserAlt /> Employee Salary Management
+      </h1>
+      
+      {/* Filter Controls */}
+      <Card className="mb-4 shadow-sm">
+        <Card.Body>
+          <Row>
+            <Col md={6} className="mb-3 mb-md-0">
+              <Form.Control
+                type="text"
+                placeholder="Search by Name or ID"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </Col>
+            <Col md={4} className="mb-3 mb-md-0">
+              <Form.Select 
+                value={filterMonth} 
+                onChange={(e) => setFilterMonth(e.target.value)}
+              >
+                <option value="">All Months</option>
+                {months.map(month => (
+                  <option key={month} value={month}>{month}</option>
+                ))}
+              </Form.Select>
+            </Col>
+            <Col md={2}>
+              <Button 
+                variant="success" 
+                className="w-100"
+                onClick={downloadCSV}
+              >
+                <FaDownload /> Export CSV
+              </Button>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
 
-      <input
-        type="text"
-        placeholder="Search by Name or ID"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        className="form-control mb-3"
-      />
+      {/* Summary Cards */}
+      <Row className="mb-4 g-3">
+        <Col md={3}>
+          <Card className="h-100 shadow-sm">
+            <Card.Body className="text-center">
+              <Card.Title><MdWork /> Employees</Card.Title>
+              <Card.Text className="display-6">
+                {filteredEmployees.length}
+              </Card.Text>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="h-100 shadow-sm">
+            <Card.Body className="text-center">
+              <Card.Title>Total Salary</Card.Title>
+              <Card.Text className="display-6">
+                Rs. {totalSalary.toLocaleString()}
+              </Card.Text>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="h-100 shadow-sm">
+            <Card.Body className="text-center">
+              <Card.Title>Total EPF</Card.Title>
+              <Card.Text className="display-6">
+                Rs. {totalEPF.toFixed(2)}
+              </Card.Text>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="h-100 shadow-sm">
+            <Card.Body className="text-center">
+              <Card.Title>Overtime Pay</Card.Title>
+              <Card.Text className="display-6">
+                Rs. {totalOvertimePay.toLocaleString()}
+              </Card.Text>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
 
-      <Button onClick={downloadCSV} variant="success" className="mb-3">
-        Download CSV
-      </Button>
-
+      {/* Employee List */}
       {loading ? (
-        <div className="text-center">
-          <Spinner animation="border" role="status" />
-          <p className="mt-2">Loading employees...</p>
+        <div className="text-center my-5">
+          <Spinner animation="border" variant="primary" />
+          <p className="mt-2">Loading employee data...</p>
         </div>
       ) : error ? (
-        <Alert variant="danger">{error}</Alert>
+        <Alert variant="danger" className="text-center">
+          {error}
+        </Alert>
       ) : (
-        <Row>
-          {filteredEmployees.map((employee) => (
-            <Col key={employee.id} md={4} className="mb-3">
+        <Row xs={1} md={2} lg={3} className="g-4">
+          {filteredEmployees.map(employee => (
+            <Col key={employee.id}>
               <SalaryDisplay employee={employee} />
-              <Button onClick={() => handleEditEmployee(employee)} variant="warning" className="m-1">
-                Edit
-              </Button>
-              <Button onClick={() => handleDeleteEmployee(employee.id)} variant="danger" className="m-1">
-                Delete
-              </Button>
+              <div className="d-flex justify-content-center">
+                <Button 
+                  variant="outline-warning" 
+                  className="me-2"
+                  onClick={() => handleEditEmployee(employee)}
+                >
+                  <FaEdit /> Edit
+                </Button>
+                <Button 
+                  variant="outline-danger"
+                  onClick={() => handleDeleteEmployee(employee.id)}
+                >
+                  <FaTrashAlt /> Delete
+                </Button>
+              </div>
             </Col>
           ))}
         </Row>
       )}
 
+      {/* Edit Modal */}
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)}>
         <Modal.Header closeButton>
-          <Modal.Title>Edit Employee</Modal.Title>
+          <Modal.Title><FaEdit /> Edit Employee</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {editEmployee && (
@@ -156,34 +280,29 @@ const Home = () => {
                 <Form.Control
                   type="text"
                   value={editEmployee.name}
-                  onChange={(e) => setEditEmployee({ ...editEmployee, name: e.target.value })}
+                  onChange={(e) => 
+                    setEditEmployee({ ...editEmployee, name: e.target.value })
+                  }
                 />
               </Form.Group>
               <Form.Group className="mb-3">
                 <Form.Label>Base Salary</Form.Label>
                 <Form.Control
                   type="number"
-                  min="0"
                   value={editEmployee.baseSalary}
-                  onChange={(e) => setEditEmployee({ ...editEmployee, baseSalary: Number(e.target.value) })}
+                  onChange={(e) =>
+                    setEditEmployee({ ...editEmployee, baseSalary: e.target.value })
+                  }
                 />
               </Form.Group>
               <Form.Group className="mb-3">
                 <Form.Label>Overtime Hours</Form.Label>
                 <Form.Control
                   type="number"
-                  min="0"
                   value={editEmployee.overtimeHours}
-                  onChange={(e) => setEditEmployee({ ...editEmployee, overtimeHours: Number(e.target.value) })}
-                />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Experience (Years)</Form.Label>
-                <Form.Control
-                  type="number"
-                  min="0"
-                  value={editEmployee.experience}
-                  onChange={(e) => setEditEmployee({ ...editEmployee, experience: Number(e.target.value) })}
+                  onChange={(e) =>
+                    setEditEmployee({ ...editEmployee, overtimeHours: e.target.value })
+                  }
                 />
               </Form.Group>
             </Form>
@@ -191,7 +310,7 @@ const Home = () => {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowEditModal(false)}>
-            Cancel
+            Close
           </Button>
           <Button variant="primary" onClick={handleSaveEdit}>
             Save Changes
@@ -199,7 +318,7 @@ const Home = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* Toast container for showing messages */}
+      {/* Toast Notifications */}
       <ToastContainer />
     </Container>
   );
