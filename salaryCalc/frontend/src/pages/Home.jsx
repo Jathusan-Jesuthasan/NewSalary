@@ -76,6 +76,28 @@ const Home = () => {
       });
   };
 
+  // Function to export employee data as CSV
+  const downloadCSV = () => {
+    const headers = ["ID", "Name", "Base Salary", "Overtime Hours", "Experience"];
+    const rows = employees.map((employee) => [
+      employee.id,
+      employee.name,
+      employee.baseSalary,
+      employee.overtimeHours,
+      employee.experience,
+    ]);
+
+    // Creating CSV string
+    const csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
+
+    // Creating a Blob for CSV and triggering download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "employees.csv"; // Default file name
+    link.click(); // Programmatically click the link to trigger download
+  };
+
   const filteredEmployees = employees.filter(
     (employee) =>
       employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -94,6 +116,10 @@ const Home = () => {
         onChange={(e) => setSearchTerm(e.target.value)}
         className="form-control mb-3"
       />
+
+      <Button onClick={downloadCSV} variant="success" className="mb-3">
+        Download CSV
+      </Button>
 
       {loading ? (
         <div className="text-center">
