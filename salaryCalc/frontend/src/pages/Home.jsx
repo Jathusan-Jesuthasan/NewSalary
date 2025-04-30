@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import SalaryDisplay from "../components/SalaryDisplay";
 import { Container, Row, Col, Button, Modal, Form, Spinner, Alert } from "react-bootstrap";
 import axios from "axios";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const Home = () => {
   const [employees, setEmployees] = useState([]);
@@ -22,6 +24,7 @@ const Home = () => {
         console.error("Error fetching employees:", error);
         setError("Failed to load employee data");
         setLoading(false);
+        toast.error("Failed to load employee data"); // Show error toast
       });
   }, []);
 
@@ -30,10 +33,11 @@ const Home = () => {
     axios.delete(`http://localhost:5000/api/employees/${id}`)
       .then(() => {
         setEmployees(employees.filter(employee => employee.id !== id));
+        toast.success("Employee deleted successfully"); // Show success toast
       })
       .catch((error) => {
         console.error("Error deleting employee:", error);
-        alert("Failed to delete employee");
+        toast.error("Failed to delete employee"); // Show error toast
       });
   };
 
@@ -43,10 +47,20 @@ const Home = () => {
     setShowEditModal(true);
   };
 
-  // Update Employee Data
+  // Update Employee Data with validation
   const handleSaveEdit = () => {
     if (!editEmployee.name.trim()) {
-      alert("Name cannot be empty");
+      toast.error("Name cannot be empty"); // Show error toast
+      return;
+    }
+
+    if (editEmployee.baseSalary <= 0) {
+      toast.error("Base salary must be a positive number"); // Show error toast
+      return;
+    }
+
+    if (editEmployee.overtimeHours < 0) {
+      toast.error("Overtime hours cannot be negative"); // Show error toast
       return;
     }
 
@@ -54,10 +68,11 @@ const Home = () => {
       .then((response) => {
         setEmployees(employees.map(emp => (emp.id === editEmployee.id ? response.data.employee : emp)));
         setShowEditModal(false);
+        toast.success("Employee updated successfully"); // Show success toast
       })
       .catch((error) => {
         console.error("Error updating employee:", error);
-        alert("Failed to update employee");
+        toast.error("Failed to update employee"); // Show error toast
       });
   };
 
@@ -157,6 +172,9 @@ const Home = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Toast container for showing messages */}
+      <ToastContainer />
     </Container>
   );
 };
