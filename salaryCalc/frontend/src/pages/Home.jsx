@@ -30,6 +30,8 @@ const Home = () => {
   const [editEmployee, setEditEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState(null);
 
   useEffect(() => {
     fetchEmployees();
@@ -48,14 +50,24 @@ const Home = () => {
     }
   };
 
-  const handleDeleteEmployee = async (id) => {
+  const handleDeleteClick = (employee) => {
+    setEmployeeToDelete(employee);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!employeeToDelete) return;
+    
     try {
-      await axios.delete(`http://localhost:5000/api/employees/${id}`);
-      setEmployees(prev => prev.filter(employee => employee.id !== id));
+      await axios.delete(`http://localhost:5000/api/employees/${employeeToDelete.id}`);
+      setEmployees(prev => prev.filter(employee => employee.id !== employeeToDelete.id));
       toast.success("Employee deleted successfully");
     } catch (err) {
       console.error("Error deleting employee:", err);
       toast.error("Failed to delete employee");
+    } finally {
+      setShowDeleteModal(false);
+      setEmployeeToDelete(null);
     }
   };
 
@@ -258,7 +270,7 @@ const Home = () => {
                 </Button>
                 <Button 
                   variant="outline-danger"
-                  onClick={() => handleDeleteEmployee(employee.id)}
+                  onClick={() => handleDeleteClick(employee)}
                 >
                   <FaTrashAlt /> Delete
                 </Button>
@@ -315,6 +327,25 @@ const Home = () => {
           </Button>
           <Button variant="primary" onClick={handleSaveEdit}>
             Save Changes
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Confirm Delete</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to delete {employeeToDelete?.name} (ID: {employeeToDelete?.id})?
+          This action cannot be undone.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleDeleteConfirm}>
+            Delete
           </Button>
         </Modal.Footer>
       </Modal>

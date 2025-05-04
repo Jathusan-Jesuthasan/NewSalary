@@ -2,13 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Form, Button, Row, Col, Toast, ToastContainer, Tooltip, OverlayTrigger } from 'react-bootstrap';
 import { FaBriefcase, FaCode, FaPaintBrush, FaCalculator, FaUserAlt } from 'react-icons/fa';
 
-const POSITIONS = [
-  { title: 'Manager', icon: <FaBriefcase /> },
-  { title: 'Developer', icon: <FaCode /> },
-  { title: 'Designer', icon: <FaPaintBrush /> },
-  { title: 'Accountant', icon: <FaCalculator /> },
-  { title: 'Clerk', icon: <FaUserAlt /> }
-];
+const POSITIONS = ['Manager', 'Developer', 'Designer', 'Accountant', 'Clerk'];
 
 const Settings = () => {
   const [selectedPosition, setSelectedPosition] = useState('');
@@ -24,25 +18,62 @@ const Settings = () => {
   const [positionSettings, setPositionSettings] = useState(() => {
     const savedSettings = localStorage.getItem('positionSettings');
     return savedSettings ? JSON.parse(savedSettings) : {
-      Manager: { baseSalary: 120000, epfPercentage: 8, etfPercentage: 3, transportAllowance: 5000, overtimeRate: 1000 },
-      Developer: { baseSalary: 90000, epfPercentage: 8, etfPercentage: 3, transportAllowance: 4000, overtimeRate: 800 },
-      Designer: { baseSalary: 80000, epfPercentage: 8, etfPercentage: 3, transportAllowance: 3500, overtimeRate: 700 },
-      Accountant: { baseSalary: 75000, epfPercentage: 8, etfPercentage: 3, transportAllowance: 3000, overtimeRate: 600 },
-      Clerk: { baseSalary: 60000, epfPercentage: 8, etfPercentage: 3, transportAllowance: 2500, overtimeRate: 500 }
+      Manager: {
+        baseSalary: 120000,
+        epfPercentage: 8,
+        etfPercentage: 3,
+        transportAllowance: 5000,
+        overtimeRate: 1000
+      },
+      Developer: {
+        baseSalary: 90000,
+        epfPercentage: 8,
+        etfPercentage: 3,
+        transportAllowance: 4000,
+        overtimeRate: 800
+      },
+      Designer: {
+        baseSalary: 80000,
+        epfPercentage: 8,
+        etfPercentage: 3,
+        transportAllowance: 3500,
+        overtimeRate: 700
+      },
+      Accountant: {
+        baseSalary: 75000,
+        epfPercentage: 8,
+        etfPercentage: 3,
+        transportAllowance: 3000,
+        overtimeRate: 600
+      },
+      Clerk: {
+        baseSalary: 60000,
+        epfPercentage: 8,
+        etfPercentage: 3,
+        transportAllowance: 2500,
+        overtimeRate: 500
+      }
     };
   });
 
   useEffect(() => {
     if (selectedPosition) {
-      setSettings(positionSettings[selectedPosition]);
+      const positionSetting = positionSettings[selectedPosition] || {
+        baseSalary: 0,
+        epfPercentage: 8,
+        etfPercentage: 3,
+        transportAllowance: 2500,
+        overtimeRate: 500
+      };
+      setSettings(positionSetting);
     }
-  }, [selectedPosition]);
+  }, [selectedPosition, positionSettings]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setSettings(prev => ({
       ...prev,
-      [name]: parseFloat(value)
+      [name]: parseFloat(value) || 0
     }));
   };
 
@@ -52,14 +83,20 @@ const Settings = () => {
       alert('Please select a position first');
       return;
     }
-
-    const updatedSettings = {
+    
+    // Update settings for the selected position
+    const updatedPositionSettings = {
       ...positionSettings,
       [selectedPosition]: settings
     };
-
-    setPositionSettings(updatedSettings);
-    localStorage.setItem('positionSettings', JSON.stringify(updatedSettings));
+    
+    setPositionSettings(updatedPositionSettings);
+    localStorage.setItem('positionSettings', JSON.stringify(updatedPositionSettings));
+    
+    // Trigger both storage event and custom event
+    window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new Event('positionSettingsUpdated'));
+    
     setShowToast(true);
   };
 
@@ -84,10 +121,8 @@ const Settings = () => {
               autoFocus
             >
               <option value="">Choose a position</option>
-              {POSITIONS.map(pos => (
-                <option key={pos.title} value={pos.title}>
-                  {pos.icon} {pos.title}
-                </option>
+              {POSITIONS.map(position => (
+                <option key={position} value={position}>{position}</option>
               ))}
             </Form.Select>
           </Form.Group>
