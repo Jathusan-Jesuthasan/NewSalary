@@ -177,6 +177,7 @@ const Home = () => {
             </Col>
             <Col md={2}>
               <Button 
+                style={{ backgroundColor: '#402978', borderColor: '#402978' }}
                 variant="success" 
                 className="w-100"
                 onClick={downloadCSV}

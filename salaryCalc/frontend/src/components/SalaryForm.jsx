@@ -229,7 +229,7 @@ const SalaryForm = () => {
               <strong>Basic Salary (Preview): Rs. {totalSalary.toLocaleString()}</strong>
             </div>
 
-            <Button variant="primary" type="submit" disabled={loading || !formData.position}>
+            <Button variant="primary" type="submit" disabled={loading || !formData.position} >
               {loading ? "Adding..." : "Add Employee"}
             </Button>
           </Form>
