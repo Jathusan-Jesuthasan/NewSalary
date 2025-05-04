@@ -4,13 +4,7 @@ import { Form, Button, Card, Row, Col, Toast, ToastContainer } from "react-boots
 import axios from "axios";
 import EmployeeList from "./EmployeeList";
 
-const POSITION_SALARY_MAP = {
-  Manager: 120000,
-  Developer: 90000,
-  Designer: 80000,
-  Accountant: 75000,
-  Clerk: 60000,
-};
+const POSITIONS = ['Manager', 'Developer', 'Designer', 'Accountant', 'Clerk'];
 
 const SalaryForm = () => {
   const [formData, setFormData] = useState({
@@ -22,10 +16,19 @@ const SalaryForm = () => {
     jobStartYear: new Date().getFullYear(),
   });
 
+  const [positionSettings, setPositionSettings] = useState({});
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ show: false, message: "", variant: "" });
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Load position settings from localStorage
+    const savedSettings = localStorage.getItem('positionSettings');
+    if (savedSettings) {
+      setPositionSettings(JSON.parse(savedSettings));
+    }
+  }, []);
 
   const calculateExperience = (startYear) => {
     const currentYear = new Date().getFullYear();
@@ -62,28 +65,28 @@ const SalaryForm = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    let updatedValue = value;
-
     if (name === "position") {
-      const defaultSalary = POSITION_SALARY_MAP[value] || 0;
-      setFormData((prev) => ({
+      // Update base salary based on position
+      const settings = positionSettings[value] || {};
+      setFormData(prev => ({
         ...prev,
         position: value,
-        baseSalary: defaultSalary,
+        baseSalary: settings.baseSalary || 0,
       }));
       return;
     }
 
+    let updatedValue = value;
     if (["baseSalary", "overtimeHours"].includes(name)) {
       updatedValue = parseFloat(value) || 0;
     } else if (name === "jobStartYear") {
       updatedValue = parseInt(value) || new Date().getFullYear();
     }
 
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [name]: updatedValue,
-    });
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -116,14 +119,15 @@ const SalaryForm = () => {
     }
   };
 
-  const totalSalary =
-    parseFloat(formData.baseSalary || 0) + parseFloat(formData.overtimeHours || 0) * 150;
+  const totalSalary = parseFloat(formData.baseSalary || 0) + 
+    (parseFloat(formData.overtimeHours || 0) * 
+    (positionSettings[formData.position]?.overtimeRate || 500));
 
   return (
-    <div className="container mt-5">
-      <Card className="mb-4 shadow-sm">
+    <div className="container">
+      <Card className="mb-4">
         <Card.Body>
-          <Card.Title className="mb-4">Add New Employee</Card.Title>
+          <Card.Title>Add New Employee</Card.Title>
           <Form onSubmit={handleSubmit}>
             <Row>
               <Col md={6}>
@@ -148,11 +152,9 @@ const SalaryForm = () => {
                     onChange={handleChange}
                     required
                   >
-                    <option value="">Select position</option>
-                    {Object.keys(POSITION_SALARY_MAP).map((pos) => (
-                      <option key={pos} value={pos}>
-                        {pos}
-                      </option>
+                    <option value="">Select Position</option>
+                    {POSITIONS.map(position => (
+                      <option key={position} value={position}>{position}</option>
                     ))}
                   </Form.Select>
                 </Form.Group>
@@ -204,7 +206,6 @@ const SalaryForm = () => {
                     value={formData.baseSalary}
                     onChange={handleChange}
                     required
-                    disabled
                   />
                 </Form.Group>
               </Col>
@@ -237,7 +238,6 @@ const SalaryForm = () => {
 
       <EmployeeList employees={employees} />
 
-      {/* Toast Notifications */}
       <ToastContainer position="bottom-end" className="p-3">
         <Toast show={toast.show} bg={toast.variant} onClose={() => setToast({ ...toast, show: false })}>
           <Toast.Body className="text-white">{toast.message}</Toast.Body>

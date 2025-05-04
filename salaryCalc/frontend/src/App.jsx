@@ -3,7 +3,7 @@ import "bootstrap/dist/css/bootstrap.min.css"; // Import Bootstrap
 import { BrowserRouter as Router, Route, Routes, Link } from "react-router-dom";
 import Home from "./pages/Home";
 import SalaryForm from "./components/SalaryForm";
-
+import Settings from "./pages/Settings";
 
 const App = () => {
   return (
@@ -18,8 +18,8 @@ const App = () => {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/add-employee" element={<SalaryForm />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="/crud" element={<table />} />
-
         </Routes>
       </div>
     </Router>
