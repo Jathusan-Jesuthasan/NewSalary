@@ -11,8 +11,8 @@ const App = () => {
       <div className="container mt-3">
         <nav>
           <Link to="/" className="btn btn-primary me-2">Salary Details</Link> 
-          <Link to="/add-employee" className="btn btn-success">Add Employee</Link><br/>
-         
+          <Link to="/add-employee" className="btn btn-success me-2">Add Employee</Link>
+          <Link to="/settings" className="btn btn-primary">Settings</Link><br/>
         </nav>
 
         <Routes>
